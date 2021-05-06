@@ -28,20 +28,25 @@ class Path(APIView):
         start = request.query_params.get("start", None)
         end = request.query_params.get("end", None)
         graph = cache.get('graph', {})
-        return Response(self.find_shortest_path(graph, start, end, path=[]) or 'no given path')
+        return Response(self.find_shortest_path(graph, start, end) or 'no given path')
 
-    @classmethod
-    def find_shortest_path(cls,graph, start, end, path=[]):
-        path = path + [start]
+    @staticmethod
+    def find_shortest_path(graph, start, end):
+        explored = []
+        queue = [[start]]
         if start == end:
-            return path
-        if not start in graph:
-            return None
-        shortest = None
-        for node in graph[start]:
-            if node not in path:
-                new_path = cls.find_shortest_path(graph, node, end, path)
-                if new_path:
-                    if not shortest or len(new_path) < len(shortest):
-                        shortest = new_path
-        return shortest
+            return [start]
+        while queue:
+            path = queue.pop(0) #path == [start] ,a==[]
+            node = path[-1]  #node = start
+            if node not in explored:
+                connected_nodes = graph.get(node,None)
+                if connected_nodes:
+                    for connected_node in connected_nodes:
+                        new_path = list(path)
+                        new_path.append(connected_node)
+                        queue.append(new_path)
+                        if connected_node == end:
+                            return new_path
+                    explored.append(node)
+        return None

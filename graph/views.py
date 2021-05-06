@@ -14,7 +14,10 @@ class ConnectNode(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         graph = cache.get('graph', {})
-        graph.update({data['start']: [data['end']]})
+        if graph.get(data['start'],None) == None:
+            graph[data['start']] = set(data['end'])
+        else:
+            graph[data['start']].add(data['end'])
         cache.set("graph", graph)
         return Response("path set")
 
@@ -25,17 +28,20 @@ class Path(APIView):
         start = request.query_params.get("start", None)
         end = request.query_params.get("end", None)
         graph = cache.get('graph', {})
-        return Response(self.get_path(graph, start, end, path=[]) or 'no given path')
+        return Response(self.find_shortest_path(graph, start, end, path=[]) or 'no given path')
 
     @classmethod
-    def get_path(cls, graph, start, end, path=[]):
+    def find_shortest_path(cls,graph, start, end, path=[]):
         path = path + [start]
         if start == end:
             return path
         if not start in graph:
             return None
+        shortest = None
         for node in graph[start]:
             if node not in path:
-                new_path = cls.get_path(graph, node, end, path)
-                if new_path: return new_path
-        return None
+                new_path = cls.find_shortest_path(graph, node, end, path)
+                if new_path:
+                    if not shortest or len(new_path) < len(shortest):
+                        shortest = new_path
+        return shortest
